@@ -1,0 +1,85 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: aline-ingress
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/target-type: instance # mode will route traffic to all ec2 instances within cluster on NodePort opened for your service
+    alb.ingress.kubernetes.io/scheme: internet-facing # specifies whether your LoadBalancer will be internet facing
+spec:
+  rules:
+  #- host: "*.amazonaws.com"
+  - http:
+      paths:
+      - path: "/accounts"
+        pathType: Prefix
+        backend:
+          service:
+            name: account-service
+            port: 
+              number: 80
+      #- path: "/members/*/accounts"
+      #  pathType: Prefix
+      #  backend:
+      #    service:
+      #      name: account-service
+      #      port: 
+      #        number: 80
+      - path: "/banks"
+        pathType: Prefix
+        backend:
+          service:
+            name: bank-service
+            port: 
+              number: 80
+      - path: "/branches"
+        pathType: Prefix
+        backend:
+          service:
+            name: bank-service
+            port: 
+              number: 80         
+      - path: "/cards"
+        pathType: Prefix
+        backend:
+          service:
+            name: card-service
+            port: 
+              number: 80            
+      - path: "/transactions"
+        pathType: Prefix
+        backend:
+          service:
+            name: transaction-service
+            port: 
+              number: 80
+      - path: "/applications"
+        pathType: Prefix
+        backend:
+          service:
+            name: underwriter-service
+            port: 
+              number: 80
+      - path: "/applicants"
+        pathType: Prefix
+        backend:
+          service:
+            name: account-service
+            port: 
+              number: 80                 
+      - path: "/users"
+        pathType: Prefix
+        backend:
+          service:
+            name: user-service
+            port: 
+              number: 80
+      - path: "/login"
+        pathType: Prefix
+        backend:
+          service:
+            name: user-service
+            port: 
+              number: 80
+
+            

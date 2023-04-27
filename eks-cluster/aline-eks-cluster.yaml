@@ -1,0 +1,19 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+  name: ${cluster_name} # Example: cc-aline-cluster
+  region: ${cluster_region} #Example: us-west-2 # Closest region (to me) located in US West(Oregon)
+  version: ${K8_version} # Example: "1.23" # Default version for eks kubernetes version using eksctl
+  labels: 
+    Author : ${file_author} # Example: "Colton Cronquist"
+    ProjectName : ${project_name} # "Aline Finacial"
+  
+managedNodeGroups: # Rolling updates for new AMIs or Kubernetes version deployments, automatic autoscaling group discovery, graceful Node termination
+- name: ${node_group_name} # example: aline-nodegroup 
+  privateNetworking: true # launchs the nodes in private subnets
+  instanceType: ${instance_type} # Example: t2.small
+  desiredCapacity: ${desired_capacity} # Example: 1
+  minSize: ${min_node_size} # Example: 1
+  maxSize: ${max_node_size} # Example: 5
+  spot: true # Allows for taking advantage of unused EC2 capacity. 
+             # Good for containerized microservices and integrations with CI/CD

@@ -1,0 +1,82 @@
+---
+# Define hosting environment
+hosting_infrastructure: aws
+
+# Define AWS region. Comment out the one you DO NOT wish to use with #
+# aws_region: "us-east-1"
+aws_region: "us-east-2"
+#aws_region: "us-west-1"
+#aws_region: "us-west-2"
+
+# Define Enviroment Name
+env_id: "Development"
+# env_id: "Production"
+# env_id: "Test"
+
+# Define Location for CFT files. These cloud also be s3 bucket location 
+networking_dir: "../files/cluster-networking.yaml"
+alb_dir:  "../files/alb-external.yaml"
+service_account: "../files/service-account.yaml"
+service_bank: "../files/service-bank.yaml"
+service_card: "../files/service-card.yaml"
+service_transaction: "../files/service-transaction.yaml"
+service_underwriter: "../files/service-underwriter.yaml"
+service_user: "../files/service-user.yaml"
+
+# Image Location for Services
+account_image: "412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-account-microservice:latest"
+bank_image: "412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-bank-microservice:latest"
+card_image: "412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-card-microservice:latest"
+transaction_image: "412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-transaction-microservice:latest"
+underwriter_image: "412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-underwriter-microservice:latest"
+user_image: "412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-user-microservice:latest"
+
+# Container Ports:
+account_port: 8176
+bank_port: 8172
+card_port: 8174
+transaction_port: 8178
+underwriter_port: 8170
+user_port: 8177
+
+# Container CPU
+container_cpu: 256
+
+# Container Memory
+container_mem: 512
+
+# Desired count for tasks
+account_desire_count: 1
+bank_desire_count: 1
+card_desire_count: 1
+transaction_desire_count: 1
+underwriter_desire_count: 1
+user_desire_count: 1
+
+# DB credentials and targets
+db_host: "{{ lookup('amazon.aws.aws_secret', 'cc-aline-db-cred.host', nested=true) }}"
+db_name: "{{ lookup('amazon.aws.aws_secret', 'cc-aline-db-cred.dbname', nested=true) }}"
+db_password: "{{ lookup('amazon.aws.aws_secret', 'cc-aline-db-cred.password', nested=true) }}"
+db_username: "{{ lookup('amazon.aws.aws_secret', 'cc-aline-db-cred.username', nested=true) }}"
+db_port: 3306
+
+# Container Keys
+jwt_secret_key: "{{ lookup('amazon.aws.aws_secret', 'Aline-Cred.AlineJWTSecretKey', nested=true) }}"
+encrypt_secret_key: "{{ lookup('amazon.aws.aws_secret', 'Aline-Cred.AlineEncryptKey', nested=true) }}"
+
+# Stack names
+networking_stack: "CC-ECS-Networking"
+alb_stack: "CC-ALB"
+account_stack: "Account-Service"
+bank_stack: "Bank-Service"
+card_stack: "Card-Service"
+transaction_stack: "Transaction-Service"
+underwriter_stack: "Underwriter-Service"
+user_stack: "User-Service"
+
+
+
+
+
+
+

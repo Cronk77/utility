@@ -1,0 +1,17 @@
+---
+- name: Rollback ECS and Netwroking from Cloudforation Template
+  hosts: servers
+  # connection: local
+  gather_facts: False
+  become: no
+  vars_files:
+    - "../group_vars/all_vars.yaml"
+  tasks:
+    - name: Roll Back ECS Cluster, ALB, and Networking
+      cloudformation:
+        stack_name: "{{ env_id }}-{{ item.stack_name }}"
+        state: "absent"
+        region: "{{ aws_region }}"
+      loop:    
+        - {stack_name: "{{ alb_stack }}"}
+        - {stack_name: "{{ networking_stack }}"}

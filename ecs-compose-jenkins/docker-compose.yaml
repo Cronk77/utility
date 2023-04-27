@@ -1,0 +1,131 @@
+version: '3.8'
+
+#x-aws-vpc: ${VPC_ID}
+
+
+# x-common-variables: &common-variables
+#   - ENCRYPT_SECRET_KEY=${ENCRYPT_SECRET_KEY}
+#   - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+#   - DB_USERNAME=${DB_USERNAME}
+#   - DB_PASSWORD=${DB_PASSWORD}
+#   - DB_HOST=${DB_HOST}
+#   - DB_PORT=${DB_PORT}
+#   - DB_NAME=${DB_NAME}
+
+services:
+  underwriter:
+    image: ${UNDERWRITER_IMAGE}
+    environment: 
+      #- "<<: *common-variables"
+      - APP_PORT=${UNDERWRITER_PORT}
+      - ENCRYPT_SECRET_KEY=${ENCRYPT_SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+    ports:
+      - ${UNDERWRITER_PORT}:${UNDERWRITER_PORT}
+
+  card:
+    image: ${CARD_IMAGE}
+    environment:
+      #- "<<: *common-variables"
+      - APP_PORT=${CARD_PORT}
+      - ENCRYPT_SECRET_KEY=${ENCRYPT_SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+    ports:
+      - ${CARD_PORT}:${CARD_PORT}
+
+  account:
+    image: ${ACCOUNT_IMAGE}
+    environment:
+      #- "<<: *common-variables"
+      - APP_PORT=${ACCOUNT_PORT}
+      - ENCRYPT_SECRET_KEY=${ENCRYPT_SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+    ports:
+      - ${ACCOUNT_PORT}:${ACCOUNT_PORT}
+
+  transaction:
+    image: ${TRANSACTION_IMAGE}
+    environment:
+      #- "<<: *common-variables"
+      - APP_PORT=${TRANSACTION_PORT}
+      - ENCRYPT_SECRET_KEY=${ENCRYPT_SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+    ports:
+      - ${TRANSACTION_PORT}:${TRANSACTION_PORT}
+
+  bank:
+    image: ${BANK_IMAGE}
+    environment:
+      #- "<<: *common-variables"
+      - APP_PORT=${BANK_PORT}
+      - ENCRYPT_SECRET_KEY=${ENCRYPT_SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+    ports:
+      - ${BANK_PORT}:${BANK_PORT}
+  
+  user:
+    image: ${USER_IMAGE}
+    environment:
+      #- "<<: *common-variables"
+      - APP_PORT=${USER_PORT}
+      - ENCRYPT_SECRET_KEY=${ENCRYPT_SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+    ports:
+      - ${USER_PORT}:${USER_PORT}
+    
+x-aws-cloudformation:
+  Resources:
+    AccountTCP8176TargetGroup:
+      Properties:
+        HealthCheckIntervalSeconds: 60
+        UnhealthyThresholdCount: 5
+    BankTCP8172TargetGroup:
+      Properties:
+        HealthCheckIntervalSeconds: 60
+        UnhealthyThresholdCount: 5
+    CardTCP8174TargetGroup:
+      Properties:
+        HealthCheckIntervalSeconds: 60
+        UnhealthyThresholdCount: 5
+    TransactionTCP8178TargetGroup:
+      Properties:
+        HealthCheckIntervalSeconds: 60
+        UnhealthyThresholdCount: 5
+    UnderwriterTCP8170TargetGroup:
+      Properties:
+        HealthCheckIntervalSeconds: 60
+        UnhealthyThresholdCount: 5
+    UserTCP8177TargetGroup:
+      Properties:
+        HealthCheckIntervalSeconds: 60
+        UnhealthyThresholdCount: 5

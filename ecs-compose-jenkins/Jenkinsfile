@@ -1,0 +1,85 @@
+pipeline{
+    agent any
+    tools {
+        'org.jenkinsci.plugins.docker.commons.tools.DockerTool' 'docker-20.10.12'
+    }
+    environment {
+        AWS_CRED = credentials("cc-aws-cred")
+        AWS_ACCOUNT_ID = credentials("AWS_ACCOUNT_ID")
+        AWS_IMAGE_REGION = "us-west-2"
+        AWS_DEFAULT_REGION = "us-east-2"
+        ENCRYPT_SECRET_KEY = credentials("encrypt-secret-key")
+        JWT_SECRET_KEY = credentials("jwt-secret-key")
+        DB_USERNAME = credentials("db-username")
+        DB_PASSWORD = credentials("db-password")
+        DB_HOST = credentials("db-host")
+        DB_NAME = credentials("db-name")
+        DB_PORT = "3306"
+        UNDERWRITER_PORT = "8170"
+        USER_PORT = "8177"
+        TRANSACTION_PORT = "8178"
+        BANK_PORT = "8172"
+        CARD_PORT = "8174"
+        ACCOUNT_PORT = "8176"
+        ECS_CLUSTER_NAME = "cc-aline-ecs-compose"
+    }
+    stages {
+        stage('Checkout'){
+            steps{
+                checkout scm
+            }
+        }
+        stage("Update Tags") {
+            steps{
+                script{//grab image tags from ECR
+                    account_image_tag = sh(returnStdout: true, script: "aws ecr describe-images --region ${AWS_IMAGE_REGION} --output json --repository-name cc-account-microservice --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text").trim()
+                    bank_image_tag = sh(returnStdout: true, script: "aws ecr describe-images --region ${AWS_IMAGE_REGION} --output json --repository-name cc-bank-microservice --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text").trim()
+                    card_image_tag = sh(returnStdout: true, script: "aws ecr describe-images --region ${AWS_IMAGE_REGION} --output json --repository-name cc-card-microservice --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text").trim()
+                    transaction_image_tag = sh(returnStdout: true, script: "aws ecr describe-images --region ${AWS_IMAGE_REGION} --output json --repository-name cc-transaction-microservice --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text").trim()
+                    underwriter_image_tag = sh(returnStdout: true, script: "aws ecr describe-images --region ${AWS_IMAGE_REGION} --output json --repository-name cc-underwriter-microservice --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text").trim()
+                    user_image_tag = sh(returnStdout: true, script: "aws ecr describe-images --region ${AWS_IMAGE_REGION} --output json --repository-name cc-user-microservice --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text").trim()
+                }
+
+                script{//sets images with correct tag
+                    env.ACCOUNT_IMAGE ="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_IMAGE_REGION}.amazonaws.com/cc-account-microservice:${account_image_tag}"
+                    env.BANK_IMAGE ="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_IMAGE_REGION}.amazonaws.com/cc-bank-microservice:${bank_image_tag}"
+                    env.CARD_IMAGE ="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_IMAGE_REGION}.amazonaws.com/cc-card-microservice:${card_image_tag}"
+                    env.TRANSACTION_IMAGE ="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_IMAGE_REGION}.amazonaws.com/cc-transaction-microservice:${transaction_image_tag}"
+                    env.UNDERWRITER_IMAGE ="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_IMAGE_REGION}.amazonaws.com/cc-underwriter-microservice:${underwriter_image_tag}"
+                    env.USER_IMAGE ="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_IMAGE_REGION}.amazonaws.com/cc-user-microservice:${user_image_tag}"
+                }
+            }
+        }
+        stage("ECS Context") {
+            steps{
+                sh '''
+                curl -L https://github.com/docker/compose-cli/releases/download/v1.0.29/docker-linux-amd64 -o docker-linux-amd64
+                sudo mv docker-linux-amd64 docker
+                sudo chmod +x docker
+                mv docker $(which docker)
+                docker context create ecs cc-ecs-context --from-env
+                docker context use cc-ecs-context
+                '''
+            }
+        }
+        stage("Deploy ECS") {
+            steps {
+                dir('ecs-compose-jenkins/'){
+                    catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE'){
+                        //sh 'docker compose -p ${ECS_CLUSTER_NAME} up'
+                        sh 'docker compose convert'
+                    }
+                }
+            }
+        }
+        stage('Remove Context'){
+            steps{
+                sh '''
+                docker context use default
+                docker context rm cc-ecs-context
+                '''
+            }
+        }
+
+    }
+}

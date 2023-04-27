@@ -1,0 +1,95 @@
+---
+- name: Provisioning ECS using Cloudfomation Template
+  hosts: servers
+  # connection: local #Connection tells there isnt any need for SSH
+  gather_facts: False # Gather useful variables about remote hosts that can be used in playbooks
+  become: no # Not seting as Root
+  vars_files:
+    - "../group_vars/all_vars.yaml"
+
+  tasks:
+    - name: Provision Networking, ECS Cluster, and ALB Resources
+      cloudformation:
+        stack_name: "{{ env_id }}-{{ item.stack_name }}"
+        state: "present"
+        region: "{{ aws_region }}"
+        disable_rollback: true
+        template: "{{ item.service_template }}"
+        template_parameters:
+          EnvironmentName: "{{ env_id }}"
+      loop:
+        - {stack_name: "{{ networking_stack }}", service_template: "{{ networking_dir }}"}
+        - {stack_name: "{{ alb_stack }}", service_template: "{{ alb_dir }}"}
+      when: hosting_infrastructure == "aws"
+
+    - name: Provision Servics and Target groups
+      # no_log: True # Added security to prevent outputing secrets
+      cloudformation:
+        stack_name: "{{ env_id }}-{{ item.stack_name }}"
+        state: "present"
+        region: "{{ aws_region }}"
+        disable_rollback: true
+        template: "{{ item.service_template }}"
+        template_parameters:
+          EnvironmentName: "{{ env_id }}"
+          DBPASSWORD: "{{ db_password }}"
+          DBNAME: "{{ db_name }}"
+          DBUSERNAME: "{{ db_username }}"
+          DBHOST: "{{ db_host }}"
+          ENCRYPTSECRETKEY: "{{ encrypt_secret_key }}"
+          JWTSECRETKEY: "{{ jwt_secret_key }}"
+          ImageUrl: "{{ item.service_image }}"
+          ContainerPort: "{{ item.service_port }}"
+          ContainerCpu: "{{ container_cpu | int}}"
+          ContainerMemory: "{{ container_mem | int}}"
+          DesiredCount: "{{ item.service_desire }}"
+          DBPORT: "{{ db_port | int }}"
+          APPPORT: "{{ item.service_port }}"
+      loop:
+        - { # Account Microservice
+          stack_name: "{{ account_stack }}", 
+          service_template: "{{ service_account }}", 
+          service_image: "{{ account_image }}", 
+          service_port: "{{ account_port | int}}", 
+          service_desire: "{{ account_desire_count | int }}"
+          }
+        - { # Bank Microservice
+          stack_name: "{{ bank_stack }}", 
+          service_template: "{{ service_bank }}", 
+          service_image: "{{ bank_image }}", 
+          service_port: "{{ bank_port | int}}", 
+          service_desire: "{{ bank_desire_count | int }}"
+          }
+        - { # Card Microservice
+          stack_name: "{{ card_stack }}", 
+          service_template: "{{ service_card }}", 
+          service_image: "{{ card_image }}", 
+          service_port: "{{ card_port | int}}", 
+          service_desire: "{{ card_desire_count | int }}"
+          }
+        - { # Transaction Microservice
+          stack_name: "{{ transaction_stack }}", 
+          service_template: "{{ service_transaction }}", 
+          service_image: "{{ transaction_image }}", 
+          service_port: "{{ transaction_port | int}}", 
+          service_desire: "{{ transaction_desire_count | int }}"
+          }
+        - { # Underwriter Microservice
+          stack_name: "{{ underwriter_stack }}", 
+          service_template: "{{ service_underwriter }}", 
+          service_image: "{{ underwriter_image }}", 
+          service_port: "{{ underwriter_port | int}}", 
+          service_desire: "{{ underwriter_desire_count | int }}"
+          }
+        - { # User Microservice
+          stack_name: "{{ user_stack }}", 
+          service_template: "{{ service_user }}", 
+          service_image: "{{ user_image }}", 
+          service_port: "{{ user_port | int}}", 
+          service_desire: "{{ user_desire_count | int }}"
+          }
+      when: hosting_infrastructure == "aws"
+      poll: 0 # Run these looped tasks in parrellel
+      async: 10
+
+    

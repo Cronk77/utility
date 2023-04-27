@@ -1,0 +1,24 @@
+---
+- name: Rollback ECS Services from Cloudforation Template
+  hosts: servers
+  # connection: local
+  gather_facts: False
+  become: no
+  vars_files:
+    - "../group_vars/all_vars.yaml"
+  
+  tasks:
+    - name: Roll Back ECS Services
+      cloudformation:
+        stack_name: "{{ env_id }}-{{ item.stack_name }}"
+        state: "absent"
+        region: "{{ aws_region }}"
+      loop:
+        - {stack_name: "{{ account_stack }}"}
+        - {stack_name: "{{ bank_stack }}"}
+        - {stack_name: "{{ card_stack }}"}
+        - {stack_name: "{{ transaction_stack }}"}
+        - {stack_name: "{{ underwriter_stack }}"}
+        - {stack_name: "{{ user_stack }}"}
+      poll: 0
+      async: 10

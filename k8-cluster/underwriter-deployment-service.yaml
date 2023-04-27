@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: underwriter-deployment
+  labels:
+    app: underwriter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: underwriter
+  template:
+    metadata:
+      labels:
+        app: underwriter
+    spec:
+      containers:
+      - name: underwriter
+        image: 239153380322.dkr.ecr.us-east-2.amazonaws.com/cc-underwriter-microservice:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        env:
+          - name: ENCRYPT_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: aline-secret
+                key: ENCRYPT_SECRET_KEY
+          - name: JWT_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: aline-secret
+                key: JWT_SECRET_KEY
+          - name: DB_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: aline-secret
+                key: DB_USERNAME
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: aline-secret
+                key: DB_PASSWORD
+          - name: DB_HOST
+            valueFrom:
+              configMapKeyRef:
+                name: aline-config
+                key: DB_HOST
+          - name: DB_PORT
+            valueFrom:
+              configMapKeyRef:
+                name: aline-config
+                key: DB_PORT
+          - name: DB_NAME
+            valueFrom:
+              configMapKeyRef:
+                name: aline-config
+                key: DB_NAME   
+          - name: APP_PORT
+            value: '80'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: underwriter-service
+spec:
+  selector:
+    app: underwriter
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80

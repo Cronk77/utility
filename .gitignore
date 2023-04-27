@@ -1,0 +1,6 @@
+.env
+logfile.log
+aline-secret.yaml
+.terraform*
+script.sh
+.aws*

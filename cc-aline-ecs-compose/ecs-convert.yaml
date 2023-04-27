@@ -1,0 +1,1346 @@
+AWSTemplateFormatVersion: 2010-09-09
+# add MetaData, Parameters, Mappings, Conditions, and Outputs
+###################################################################
+Resources:
+############ACCOUNT################################################
+  AccountService:
+    DependsOn:
+    - AccountTCP8176Listener
+    Properties:
+      Cluster:
+        Fn::GetAtt:
+        - Cluster
+        - Arn
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      DeploymentController:
+        Type: ECS
+      DesiredCount: 1
+      LaunchType: FARGATE
+      LoadBalancers:
+      - ContainerName: account
+        ContainerPort: 8176
+        TargetGroupArn:
+          Ref: AccountTCP8176TargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+          - Ref: DefaultNetwork
+          Subnets:
+          - subnet-09f2982f9e528af15
+          - subnet-0c726a87818c72ed1
+          - subnet-0200c78128433c0b7
+      PlatformVersion: 1.4.0
+      PropagateTags: SERVICE
+      SchedulingStrategy: REPLICA
+      ServiceRegistries:
+      - RegistryArn:
+          Fn::GetAtt:
+          - AccountServiceDiscoveryEntry
+          - Arn
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      - Key: com.docker.compose.service
+        Value: account
+      TaskDefinition:
+        Ref: AccountTaskDefinition
+    Type: AWS::ECS::Service
+########################################################################
+  AccountServiceDiscoveryEntry:
+    Properties:
+      Description: '"account" service discovery entry in Cloud Map'
+      DnsConfig:
+        DnsRecords:
+        - TTL: 60
+          Type: A
+        RoutingPolicy: MULTIVALUE
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+      Name: account
+      NamespaceId:
+        Ref: CloudMap
+    Type: AWS::ServiceDiscovery::Service
+#######################################################################
+  AccountTCP8176Listener:
+    Properties:
+      DefaultActions:
+      - ForwardConfig:
+          TargetGroups:
+          - TargetGroupArn:
+              Ref: AccountTCP8176TargetGroup
+        Type: forward
+      LoadBalancerArn:
+        Ref: LoadBalancer
+      Port: 8176
+      Protocol: TCP
+    Type: AWS::ElasticLoadBalancingV2::Listener
+#######################################################################
+  AccountTCP8176TargetGroup:
+    Properties:
+      Port: 8176
+      Protocol: TCP
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      TargetType: ip
+      VpcId: vpc-05165c0da38f13cd1
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+#######################################################################
+  AccountTaskDefinition:
+    Properties:
+      ContainerDefinitions:
+      - Command:
+        - us-east-2.compute.internal
+        - cc-aline-ecs-compose.local
+        Essential: false
+        Image: docker/ecs-searchdomain-sidecar:1.0
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group:
+              Ref: LogGroup
+            awslogs-region:
+              Ref: AWS::Region
+            awslogs-stream-prefix: cc-aline-ecs-compose
+        Name: Account_ResolvConf_InitContainer
+      - DependsOn:
+        - Condition: SUCCESS
+          ContainerName: Account_ResolvConf_InitContainer
+        Environment:
+        - Name: '<<: *common-variables'
+        - Name: ACCOUNT_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-account-microservice:latest
+        - Name: ACCOUNT_PORT
+          Value: "8176"
+        - Name: APP_PORT
+          Value: "8176"
+        - Name: AWS_ACCESS_KEY_ID
+          Value: AKIAV73YFY6GGAYG7FZJ
+        - Name: AWS_SECRET_ACCESS_KEY
+          Value: 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
+        - Name: BANK_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-bank-microservice:latest
+        - Name: BANK_PORT
+          Value: "8172"
+        - Name: CARD_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-card-microservice:latest
+        - Name: CARD_PORT
+          Value: "8174"
+        - Name: DB_HOST
+          Value: cc-aline-db.cp8z9jpbulvt.us-east-2.rds.amazonaws.com
+        - Name: DB_NAME
+          Value: aline
+        - Name: DB_PASSWORD
+          Value: password123
+        - Name: DB_PORT
+          Value: "3306"
+        - Name: DB_USERNAME
+          Value: admin
+        - Name: ENCRYPT_SECRET_KEY
+          Value: "12345678901234567890123456789012"
+        - Name: JWT_SECRET_KEY
+          Value: "12345678901234567890123456789012"
+        - Name: TRANSACTION_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-transaction-microservice:latest
+        - Name: TRANSACTION_PORT
+          Value: "8178"
+        - Name: UNDERWRITER_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-underwriter-microservice:latest
+        - Name: UNDERWRITER_PORT
+          Value: "8170"
+        - Name: USER_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-user-microservice:latest
+        - Name: USER_PORT
+          Value: "8177"
+        - Name: VPC_ID
+          Value: vpc-05165c0da38f13cd1
+        Essential: true
+        Image: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-account-microservice:latest@sha256:1597c1a51d886e4838a1cf588937c5bcb7ceb5e3617fcc63c196b656eb2a4c35
+        LinuxParameters: {}
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group:
+              Ref: LogGroup
+            awslogs-region:
+              Ref: AWS::Region
+            awslogs-stream-prefix: cc-aline-ecs-compose
+        Name: account
+        PortMappings:
+        - ContainerPort: 8176
+          HostPort: 8176
+          Protocol: tcp
+      Cpu: "256"
+      ExecutionRoleArn:
+        Ref: AccountTaskExecutionRole
+      Family: cc-aline-ecs-compose-account
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+      - FARGATE
+    Type: AWS::ECS::TaskDefinition
+#######################################################################
+  AccountTaskExecutionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Condition: {}
+          Effect: Allow
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      - Key: com.docker.compose.service
+        Value: account
+    Type: AWS::IAM::Role
+#######################################################################
+  Default8176Ingress:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      Description: account:8176/tcp on default network
+      FromPort: 8176
+      GroupId:
+        Ref: DefaultNetwork
+      IpProtocol: TCP
+      ToPort: 8176
+    Type: AWS::EC2::SecurityGroupIngress
+
+
+############BANK#######################################################
+  BankService:
+    DependsOn:
+    - BankTCP8172Listener
+    Properties:
+      Cluster:
+        Fn::GetAtt:
+        - Cluster
+        - Arn
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      DeploymentController:
+        Type: ECS
+      DesiredCount: 1
+      LaunchType: FARGATE
+      LoadBalancers:
+      - ContainerName: bank
+        ContainerPort: 8172
+        TargetGroupArn:
+          Ref: BankTCP8172TargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+          - Ref: DefaultNetwork
+          Subnets:
+          - subnet-09f2982f9e528af15
+          - subnet-0c726a87818c72ed1
+          - subnet-0200c78128433c0b7
+      PlatformVersion: 1.4.0
+      PropagateTags: SERVICE
+      SchedulingStrategy: REPLICA
+      ServiceRegistries:
+      - RegistryArn:
+          Fn::GetAtt:
+          - BankServiceDiscoveryEntry
+          - Arn
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      - Key: com.docker.compose.service
+        Value: bank
+      TaskDefinition:
+        Ref: BankTaskDefinition
+    Type: AWS::ECS::Service
+#######################################################################
+  BankServiceDiscoveryEntry:
+    Properties:
+      Description: '"bank" service discovery entry in Cloud Map'
+      DnsConfig:
+        DnsRecords:
+        - TTL: 60
+          Type: A
+        RoutingPolicy: MULTIVALUE
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+      Name: bank
+      NamespaceId:
+        Ref: CloudMap
+    Type: AWS::ServiceDiscovery::Service
+#######################################################################
+  BankTCP8172Listener:
+    Properties:
+      DefaultActions:
+      - ForwardConfig:
+          TargetGroups:
+          - TargetGroupArn:
+              Ref: BankTCP8172TargetGroup
+        Type: forward
+      LoadBalancerArn:
+        Ref: LoadBalancer
+      Port: 8172
+      Protocol: TCP
+    Type: AWS::ElasticLoadBalancingV2::Listener
+#######################################################################
+  BankTCP8172TargetGroup:
+    Properties:
+      Port: 8172
+      Protocol: TCP
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      TargetType: ip
+      VpcId: vpc-05165c0da38f13cd1
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+#######################################################################
+  BankTaskDefinition:
+    Properties:
+      ContainerDefinitions:
+      - Command:
+        - us-east-2.compute.internal
+        - cc-aline-ecs-compose.local
+        Essential: false
+        Image: docker/ecs-searchdomain-sidecar:1.0
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group:
+              Ref: LogGroup
+            awslogs-region:
+              Ref: AWS::Region
+            awslogs-stream-prefix: cc-aline-ecs-compose
+        Name: Bank_ResolvConf_InitContainer
+      - DependsOn:
+        - Condition: SUCCESS
+          ContainerName: Bank_ResolvConf_InitContainer
+        Environment:
+        - Name: '<<: *common-variables'
+        - Name: ACCOUNT_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-account-microservice:latest
+        - Name: ACCOUNT_PORT
+          Value: "8176"
+        - Name: APP_PORT
+          Value: "8172"
+        - Name: AWS_ACCESS_KEY_ID
+          Value: AKIAV73YFY6GGAYG7FZJ
+        - Name: AWS_SECRET_ACCESS_KEY
+          Value: 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
+        - Name: BANK_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-bank-microservice:latest
+        - Name: BANK_PORT
+          Value: "8172"
+        - Name: CARD_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-card-microservice:latest
+        - Name: CARD_PORT
+          Value: "8174"
+        - Name: DB_HOST
+          Value: cc-aline-db.cp8z9jpbulvt.us-east-2.rds.amazonaws.com
+        - Name: DB_NAME
+          Value: aline
+        - Name: DB_PASSWORD
+          Value: password123
+        - Name: DB_PORT
+          Value: "3306"
+        - Name: DB_USERNAME
+          Value: admin
+        - Name: ENCRYPT_SECRET_KEY
+          Value: "12345678901234567890123456789012"
+        - Name: JWT_SECRET_KEY
+          Value: "12345678901234567890123456789012"
+        - Name: TRANSACTION_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-transaction-microservice:latest
+        - Name: TRANSACTION_PORT
+          Value: "8178"
+        - Name: UNDERWRITER_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-underwriter-microservice:latest
+        - Name: UNDERWRITER_PORT
+          Value: "8170"
+        - Name: USER_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-user-microservice:latest
+        - Name: USER_PORT
+          Value: "8177"
+        - Name: VPC_ID
+          Value: vpc-05165c0da38f13cd1
+        Essential: true
+        Image: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-bank-microservice:latest@sha256:aa9866996592e6f4104fa52cd0fbac291ce2d8d778b1c45ecefa6b2e15fd3fcb
+        LinuxParameters: {}
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group:
+              Ref: LogGroup
+            awslogs-region:
+              Ref: AWS::Region
+            awslogs-stream-prefix: cc-aline-ecs-compose
+        Name: bank
+        PortMappings:
+        - ContainerPort: 8172
+          HostPort: 8172
+          Protocol: tcp
+      Cpu: "256"
+      ExecutionRoleArn:
+        Ref: BankTaskExecutionRole
+      Family: cc-aline-ecs-compose-bank
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+      - FARGATE
+    Type: AWS::ECS::TaskDefinition
+#######################################################################
+  BankTaskExecutionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Condition: {}
+          Effect: Allow
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      - Key: com.docker.compose.service
+        Value: bank
+    Type: AWS::IAM::Role
+#######################################################################
+  Default8172Ingress:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      Description: bank:8172/tcp on default network
+      FromPort: 8172
+      GroupId:
+        Ref: DefaultNetwork
+      IpProtocol: TCP
+      ToPort: 8172
+    Type: AWS::EC2::SecurityGroupIngress
+
+
+############CARD#######################################################
+  CardService:
+    DependsOn:
+    - CardTCP8174Listener
+    Properties:
+      Cluster:
+        Fn::GetAtt:
+        - Cluster
+        - Arn
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      DeploymentController:
+        Type: ECS
+      DesiredCount: 1
+      LaunchType: FARGATE
+      LoadBalancers:
+      - ContainerName: card
+        ContainerPort: 8174
+        TargetGroupArn:
+          Ref: CardTCP8174TargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+          - Ref: DefaultNetwork
+          Subnets:
+          - subnet-09f2982f9e528af15
+          - subnet-0c726a87818c72ed1
+          - subnet-0200c78128433c0b7
+      PlatformVersion: 1.4.0
+      PropagateTags: SERVICE
+      SchedulingStrategy: REPLICA
+      ServiceRegistries:
+      - RegistryArn:
+          Fn::GetAtt:
+          - CardServiceDiscoveryEntry
+          - Arn
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      - Key: com.docker.compose.service
+        Value: card
+      TaskDefinition:
+        Ref: CardTaskDefinition
+    Type: AWS::ECS::Service
+#######################################################################
+  CardServiceDiscoveryEntry:
+    Properties:
+      Description: '"card" service discovery entry in Cloud Map'
+      DnsConfig:
+        DnsRecords:
+        - TTL: 60
+          Type: A
+        RoutingPolicy: MULTIVALUE
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+      Name: card
+      NamespaceId:
+        Ref: CloudMap
+    Type: AWS::ServiceDiscovery::Service
+#######################################################################
+  CardTCP8174Listener:
+    Properties:
+      DefaultActions:
+      - ForwardConfig:
+          TargetGroups:
+          - TargetGroupArn:
+              Ref: CardTCP8174TargetGroup
+        Type: forward
+      LoadBalancerArn:
+        Ref: LoadBalancer
+      Port: 8174
+      Protocol: TCP
+    Type: AWS::ElasticLoadBalancingV2::Listener
+#######################################################################
+  CardTCP8174TargetGroup:
+    Properties:
+      Port: 8174
+      Protocol: TCP
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      TargetType: ip
+      VpcId: vpc-05165c0da38f13cd1
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+  CardTaskDefinition:
+    Properties:
+      ContainerDefinitions:
+      - Command:
+        - us-east-2.compute.internal
+        - cc-aline-ecs-compose.local
+        Essential: false
+        Image: docker/ecs-searchdomain-sidecar:1.0
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group:
+              Ref: LogGroup
+            awslogs-region:
+              Ref: AWS::Region
+            awslogs-stream-prefix: cc-aline-ecs-compose
+        Name: Card_ResolvConf_InitContainer
+      - DependsOn:
+        - Condition: SUCCESS
+          ContainerName: Card_ResolvConf_InitContainer
+        Environment:
+        - Name: '<<: *common-variables'
+        - Name: ACCOUNT_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-account-microservice:latest
+        - Name: ACCOUNT_PORT
+          Value: "8176"
+        - Name: APP_PORT
+          Value: "8174"
+        - Name: AWS_ACCESS_KEY_ID
+          Value: AKIAV73YFY6GGAYG7FZJ
+        - Name: AWS_SECRET_ACCESS_KEY
+          Value: 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
+        - Name: BANK_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-bank-microservice:latest
+        - Name: BANK_PORT
+          Value: "8172"
+        - Name: CARD_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-card-microservice:latest
+        - Name: CARD_PORT
+          Value: "8174"
+        - Name: DB_HOST
+          Value: cc-aline-db.cp8z9jpbulvt.us-east-2.rds.amazonaws.com
+        - Name: DB_NAME
+          Value: aline
+        - Name: DB_PASSWORD
+          Value: password123
+        - Name: DB_PORT
+          Value: "3306"
+        - Name: DB_USERNAME
+          Value: admin
+        - Name: ENCRYPT_SECRET_KEY
+          Value: "12345678901234567890123456789012"
+        - Name: JWT_SECRET_KEY
+          Value: "12345678901234567890123456789012"
+        - Name: TRANSACTION_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-transaction-microservice:latest
+        - Name: TRANSACTION_PORT
+          Value: "8178"
+        - Name: UNDERWRITER_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-underwriter-microservice:latest
+        - Name: UNDERWRITER_PORT
+          Value: "8170"
+        - Name: USER_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-user-microservice:latest
+        - Name: USER_PORT
+          Value: "8177"
+        - Name: VPC_ID
+          Value: vpc-05165c0da38f13cd1
+        Essential: true
+        Image: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-card-microservice:latest@sha256:cfad07c65d2db168149632aa9dfb068d39418fc9eeaad03e0bc9427674e6a82c
+        LinuxParameters: {}
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group:
+              Ref: LogGroup
+            awslogs-region:
+              Ref: AWS::Region
+            awslogs-stream-prefix: cc-aline-ecs-compose
+        Name: card
+        PortMappings:
+        - ContainerPort: 8174
+          HostPort: 8174
+          Protocol: tcp
+      Cpu: "256"
+      ExecutionRoleArn:
+        Ref: CardTaskExecutionRole
+      Family: cc-aline-ecs-compose-card
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+      - FARGATE
+    Type: AWS::ECS::TaskDefinition
+#######################################################################
+  CardTaskExecutionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Condition: {}
+          Effect: Allow
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      - Key: com.docker.compose.service
+        Value: card
+    Type: AWS::IAM::Role
+#######################################################################
+  Default8174Ingress:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      Description: card:8174/tcp on default network
+      FromPort: 8174
+      GroupId:
+        Ref: DefaultNetwork
+      IpProtocol: TCP
+      ToPort: 8174
+    Type: AWS::EC2::SecurityGroupIngress
+
+
+
+###########Transaction#################################################
+  TransactionService:
+    DependsOn:
+    - TransactionTCP8178Listener
+    Properties:
+      Cluster:
+        Fn::GetAtt:
+        - Cluster
+        - Arn
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      DeploymentController:
+        Type: ECS
+      DesiredCount: 1
+      LaunchType: FARGATE
+      LoadBalancers:
+      - ContainerName: transaction
+        ContainerPort: 8178
+        TargetGroupArn:
+          Ref: TransactionTCP8178TargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+          - Ref: DefaultNetwork
+          Subnets:
+          - subnet-09f2982f9e528af15
+          - subnet-0c726a87818c72ed1
+          - subnet-0200c78128433c0b7
+      PlatformVersion: 1.4.0
+      PropagateTags: SERVICE
+      SchedulingStrategy: REPLICA
+      ServiceRegistries:
+      - RegistryArn:
+          Fn::GetAtt:
+          - TransactionServiceDiscoveryEntry
+          - Arn
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      - Key: com.docker.compose.service
+        Value: transaction
+      TaskDefinition:
+        Ref: TransactionTaskDefinition
+    Type: AWS::ECS::Service
+#######################################################################
+  TransactionServiceDiscoveryEntry:
+    Properties:
+      Description: '"transaction" service discovery entry in Cloud Map'
+      DnsConfig:
+        DnsRecords:
+        - TTL: 60
+          Type: A
+        RoutingPolicy: MULTIVALUE
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+      Name: transaction
+      NamespaceId:
+        Ref: CloudMap
+    Type: AWS::ServiceDiscovery::Service
+#######################################################################
+  TransactionTCP8178Listener:
+    Properties:
+      DefaultActions:
+      - ForwardConfig:
+          TargetGroups:
+          - TargetGroupArn:
+              Ref: TransactionTCP8178TargetGroup
+        Type: forward
+      LoadBalancerArn:
+        Ref: LoadBalancer
+      Port: 8178
+      Protocol: TCP
+    Type: AWS::ElasticLoadBalancingV2::Listener
+#######################################################################
+  TransactionTCP8178TargetGroup:
+    Properties:
+      Port: 8178
+      Protocol: TCP
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      TargetType: ip
+      VpcId: vpc-05165c0da38f13cd1
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+#######################################################################
+  TransactionTaskDefinition:
+    Properties:
+      ContainerDefinitions:
+      - Command:
+        - us-east-2.compute.internal
+        - cc-aline-ecs-compose.local
+        Essential: false
+        Image: docker/ecs-searchdomain-sidecar:1.0
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group:
+              Ref: LogGroup
+            awslogs-region:
+              Ref: AWS::Region
+            awslogs-stream-prefix: cc-aline-ecs-compose
+        Name: Transaction_ResolvConf_InitContainer
+      - DependsOn:
+        - Condition: SUCCESS
+          ContainerName: Transaction_ResolvConf_InitContainer
+        Environment:
+        - Name: '<<: *common-variables'
+        - Name: ACCOUNT_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-account-microservice:latest
+        - Name: ACCOUNT_PORT
+          Value: "8176"
+        - Name: APP_PORT
+          Value: "8178"
+        - Name: AWS_ACCESS_KEY_ID
+          Value: AKIAV73YFY6GGAYG7FZJ
+        - Name: AWS_SECRET_ACCESS_KEY
+          Value: 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
+        - Name: BANK_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-bank-microservice:latest
+        - Name: BANK_PORT
+          Value: "8172"
+        - Name: CARD_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-card-microservice:latest
+        - Name: CARD_PORT
+          Value: "8174"
+        - Name: DB_HOST
+          Value: cc-aline-db.cp8z9jpbulvt.us-east-2.rds.amazonaws.com
+        - Name: DB_NAME
+          Value: aline
+        - Name: DB_PASSWORD
+          Value: password123
+        - Name: DB_PORT
+          Value: "3306"
+        - Name: DB_USERNAME
+          Value: admin
+        - Name: ENCRYPT_SECRET_KEY
+          Value: "12345678901234567890123456789012"
+        - Name: JWT_SECRET_KEY
+          Value: "12345678901234567890123456789012"
+        - Name: TRANSACTION_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-transaction-microservice:latest
+        - Name: TRANSACTION_PORT
+          Value: "8178"
+        - Name: UNDERWRITER_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-underwriter-microservice:latest
+        - Name: UNDERWRITER_PORT
+          Value: "8170"
+        - Name: USER_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-user-microservice:latest
+        - Name: USER_PORT
+          Value: "8177"
+        - Name: VPC_ID
+          Value: vpc-05165c0da38f13cd1
+        Essential: true
+        Image: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-transaction-microservice:latest@sha256:dd1b319ca6ac0849ae0667f61987e29a732e045aa636d5a744e9026f106ecbae
+        LinuxParameters: {}
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group:
+              Ref: LogGroup
+            awslogs-region:
+              Ref: AWS::Region
+            awslogs-stream-prefix: cc-aline-ecs-compose
+        Name: transaction
+        PortMappings:
+        - ContainerPort: 8178
+          HostPort: 8178
+          Protocol: tcp
+      Cpu: "256"
+      ExecutionRoleArn:
+        Ref: TransactionTaskExecutionRole
+      Family: cc-aline-ecs-compose-transaction
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+      - FARGATE
+    Type: AWS::ECS::TaskDefinition
+#######################################################################
+  TransactionTaskExecutionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Condition: {}
+          Effect: Allow
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      - Key: com.docker.compose.service
+        Value: transaction
+    Type: AWS::IAM::Role
+#######################################################################
+  Default8178Ingress:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      Description: transaction:8178/tcp on default network
+      FromPort: 8178
+      GroupId:
+        Ref: DefaultNetwork
+      IpProtocol: TCP
+      ToPort: 8178
+    Type: AWS::EC2::SecurityGroupIngress
+
+
+###########UNDERWRITER###################################################
+  UnderwriterService:
+    DependsOn:
+    - UnderwriterTCP8170Listener
+    Properties:
+      Cluster:
+        Fn::GetAtt:
+        - Cluster
+        - Arn
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      DeploymentController:
+        Type: ECS
+      DesiredCount: 1
+      LaunchType: FARGATE
+      LoadBalancers:
+      - ContainerName: underwriter
+        ContainerPort: 8170
+        TargetGroupArn:
+          Ref: UnderwriterTCP8170TargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+          - Ref: DefaultNetwork
+          Subnets:
+          - subnet-09f2982f9e528af15
+          - subnet-0c726a87818c72ed1
+          - subnet-0200c78128433c0b7
+      PlatformVersion: 1.4.0
+      PropagateTags: SERVICE
+      SchedulingStrategy: REPLICA
+      ServiceRegistries:
+      - RegistryArn:
+          Fn::GetAtt:
+          - UnderwriterServiceDiscoveryEntry
+          - Arn
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      - Key: com.docker.compose.service
+        Value: underwriter
+      TaskDefinition:
+        Ref: UnderwriterTaskDefinition
+    Type: AWS::ECS::Service
+#######################################################################
+  UnderwriterServiceDiscoveryEntry:
+    Properties:
+      Description: '"underwriter" service discovery entry in Cloud Map'
+      DnsConfig:
+        DnsRecords:
+        - TTL: 60
+          Type: A
+        RoutingPolicy: MULTIVALUE
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+      Name: underwriter
+      NamespaceId:
+        Ref: CloudMap
+    Type: AWS::ServiceDiscovery::Service
+#######################################################################
+  UnderwriterTCP8170Listener:
+    Properties:
+      DefaultActions:
+      - ForwardConfig:
+          TargetGroups:
+          - TargetGroupArn:
+              Ref: UnderwriterTCP8170TargetGroup
+        Type: forward
+      LoadBalancerArn:
+        Ref: LoadBalancer
+      Port: 8170
+      Protocol: TCP
+    Type: AWS::ElasticLoadBalancingV2::Listener
+#######################################################################
+  UnderwriterTCP8170TargetGroup:
+    Properties:
+      Port: 8170
+      Protocol: TCP
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      TargetType: ip
+      VpcId: vpc-05165c0da38f13cd1
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+#######################################################################
+  UnderwriterTaskDefinition:
+    Properties:
+      ContainerDefinitions:
+      - Command:
+        - us-east-2.compute.internal
+        - cc-aline-ecs-compose.local
+        Essential: false
+        Image: docker/ecs-searchdomain-sidecar:1.0
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group:
+              Ref: LogGroup
+            awslogs-region:
+              Ref: AWS::Region
+            awslogs-stream-prefix: cc-aline-ecs-compose
+        Name: Underwriter_ResolvConf_InitContainer
+      - DependsOn:
+        - Condition: SUCCESS
+          ContainerName: Underwriter_ResolvConf_InitContainer
+        Environment:
+        - Name: '<<: *common-variables'
+        - Name: ACCOUNT_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-account-microservice:latest
+        - Name: ACCOUNT_PORT
+          Value: "8176"
+        - Name: APP_PORT
+          Value: "8170"
+        - Name: AWS_ACCESS_KEY_ID
+          Value: AKIAV73YFY6GGAYG7FZJ
+        - Name: AWS_SECRET_ACCESS_KEY
+          Value: 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
+        - Name: BANK_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-bank-microservice:latest
+        - Name: BANK_PORT
+          Value: "8172"
+        - Name: CARD_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-card-microservice:latest
+        - Name: CARD_PORT
+          Value: "8174"
+        - Name: DB_HOST
+          Value: cc-aline-db.cp8z9jpbulvt.us-east-2.rds.amazonaws.com
+        - Name: DB_NAME
+          Value: aline
+        - Name: DB_PASSWORD
+          Value: password123
+        - Name: DB_PORT
+          Value: "3306"
+        - Name: DB_USERNAME
+          Value: admin
+        - Name: ENCRYPT_SECRET_KEY
+          Value: "12345678901234567890123456789012"
+        - Name: JWT_SECRET_KEY
+          Value: "12345678901234567890123456789012"
+        - Name: TRANSACTION_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-transaction-microservice:latest
+        - Name: TRANSACTION_PORT
+          Value: "8178"
+        - Name: UNDERWRITER_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-underwriter-microservice:latest
+        - Name: UNDERWRITER_PORT
+          Value: "8170"
+        - Name: USER_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-user-microservice:latest
+        - Name: USER_PORT
+          Value: "8177"
+        - Name: VPC_ID
+          Value: vpc-05165c0da38f13cd1
+        Essential: true
+        Image: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-underwriter-microservice:latest@sha256:15f202b2e65efcb6bf0fdd6e6bcff020278cab4099b978c22214b9f7d289dae0
+        LinuxParameters: {}
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group:
+              Ref: LogGroup
+            awslogs-region:
+              Ref: AWS::Region
+            awslogs-stream-prefix: cc-aline-ecs-compose
+        Name: underwriter
+        PortMappings:
+        - ContainerPort: 8170
+          HostPort: 8170
+          Protocol: tcp
+      Cpu: "256"
+      ExecutionRoleArn:
+        Ref: UnderwriterTaskExecutionRole
+      Family: cc-aline-ecs-compose-underwriter
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+      - FARGATE
+    Type: AWS::ECS::TaskDefinition
+#######################################################################
+  UnderwriterTaskExecutionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Condition: {}
+          Effect: Allow
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      - Key: com.docker.compose.service
+        Value: underwriter
+    Type: AWS::IAM::Role
+  UserService:
+    DependsOn:
+    - UserTCP8177Listener
+    Properties:
+      Cluster:
+        Fn::GetAtt:
+        - Cluster
+        - Arn
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      DeploymentController:
+        Type: ECS
+      DesiredCount: 1
+      LaunchType: FARGATE
+      LoadBalancers:
+      - ContainerName: user
+        ContainerPort: 8177
+        TargetGroupArn:
+          Ref: UserTCP8177TargetGroup
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+          - Ref: DefaultNetwork
+          Subnets:
+          - subnet-09f2982f9e528af15
+          - subnet-0c726a87818c72ed1
+          - subnet-0200c78128433c0b7
+      PlatformVersion: 1.4.0
+      PropagateTags: SERVICE
+      SchedulingStrategy: REPLICA
+      ServiceRegistries:
+      - RegistryArn:
+          Fn::GetAtt:
+          - UserServiceDiscoveryEntry
+          - Arn
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      - Key: com.docker.compose.service
+        Value: user
+      TaskDefinition:
+        Ref: UserTaskDefinition
+    Type: AWS::ECS::Service
+#######################################################################
+  Default8170Ingress:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      Description: underwriter:8170/tcp on default network
+      FromPort: 8170
+      GroupId:
+        Ref: DefaultNetwork
+      IpProtocol: TCP
+      ToPort: 8170
+    Type: AWS::EC2::SecurityGroupIngress
+
+
+#######################################################################
+  UserServiceDiscoveryEntry:
+    Properties:
+      Description: '"user" service discovery entry in Cloud Map'
+      DnsConfig:
+        DnsRecords:
+        - TTL: 60
+          Type: A
+        RoutingPolicy: MULTIVALUE
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+      Name: user
+      NamespaceId:
+        Ref: CloudMap
+    Type: AWS::ServiceDiscovery::Service
+#######################################################################
+  UserTCP8177Listener:
+    Properties:
+      DefaultActions:
+      - ForwardConfig:
+          TargetGroups:
+          - TargetGroupArn:
+              Ref: UserTCP8177TargetGroup
+        Type: forward
+      LoadBalancerArn:
+        Ref: LoadBalancer
+      Port: 8177
+      Protocol: TCP
+    Type: AWS::ElasticLoadBalancingV2::Listener
+#######################################################################
+  UserTCP8177TargetGroup:
+    Properties:
+      Port: 8177
+      Protocol: TCP
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      TargetType: ip
+      VpcId: vpc-05165c0da38f13cd1
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+#######################################################################
+  UserTaskDefinition:
+    Properties:
+      ContainerDefinitions:
+      - Command:
+        - us-east-2.compute.internal
+        - cc-aline-ecs-compose.local
+        Essential: false
+        Image: docker/ecs-searchdomain-sidecar:1.0
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group:
+              Ref: LogGroup
+            awslogs-region:
+              Ref: AWS::Region
+            awslogs-stream-prefix: cc-aline-ecs-compose
+        Name: User_ResolvConf_InitContainer
+      - DependsOn:
+        - Condition: SUCCESS
+          ContainerName: User_ResolvConf_InitContainer
+        Environment:
+        - Name: '<<: *common-variables'
+        - Name: ACCOUNT_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-account-microservice:latest
+        - Name: ACCOUNT_PORT
+          Value: "8176"
+        - Name: APP_PORT
+          Value: "8177"
+        - Name: AWS_ACCESS_KEY_ID
+          Value: AKIAV73YFY6GGAYG7FZJ
+        - Name: AWS_SECRET_ACCESS_KEY
+          Value: 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
+        - Name: BANK_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-bank-microservice:latest
+        - Name: BANK_PORT
+          Value: "8172"
+        - Name: CARD_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-card-microservice:latest
+        - Name: CARD_PORT
+          Value: "8174"
+        - Name: DB_HOST
+          Value: cc-aline-db.cp8z9jpbulvt.us-east-2.rds.amazonaws.com
+        - Name: DB_NAME
+          Value: aline
+        - Name: DB_PASSWORD
+          Value: password123
+        - Name: DB_PORT
+          Value: "3306"
+        - Name: DB_USERNAME
+          Value: admin
+        - Name: ENCRYPT_SECRET_KEY
+          Value: "12345678901234567890123456789012"
+        - Name: JWT_SECRET_KEY
+          Value: "12345678901234567890123456789012"
+        - Name: TRANSACTION_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-transaction-microservice:latest
+        - Name: TRANSACTION_PORT
+          Value: "8178"
+        - Name: UNDERWRITER_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-underwriter-microservice:latest
+        - Name: UNDERWRITER_PORT
+          Value: "8170"
+        - Name: USER_IMAGE
+          Value: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-user-microservice:latest
+        - Name: USER_PORT
+          Value: "8177"
+        - Name: VPC_ID
+          Value: vpc-05165c0da38f13cd1
+        Essential: true
+        Image: 412032026508.dkr.ecr.us-west-2.amazonaws.com/cc-user-microservice:latest@sha256:98e0fc295012d0919bd540992df17e4060f0d345b44eba760395b53855aa2ada
+        LinuxParameters: {}
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group:
+              Ref: LogGroup
+            awslogs-region:
+              Ref: AWS::Region
+            awslogs-stream-prefix: cc-aline-ecs-compose
+        Name: user
+        PortMappings:
+        - ContainerPort: 8177
+          HostPort: 8177
+          Protocol: tcp
+      Cpu: "256"
+      ExecutionRoleArn:
+        Ref: UserTaskExecutionRole
+      Family: cc-aline-ecs-compose-user
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+      - FARGATE
+    Type: AWS::ECS::TaskDefinition
+#######################################################################
+  UserTaskExecutionRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Condition: {}
+          Effect: Allow
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      - Key: com.docker.compose.service
+        Value: user
+    Type: AWS::IAM::Role
+#######################################################################
+  Default8177Ingress:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      Description: user:8177/tcp on default network
+      FromPort: 8177
+      GroupId:
+        Ref: DefaultNetwork
+      IpProtocol: TCP
+      ToPort: 8177
+    Type: AWS::EC2::SecurityGroupIngress
+
+
+#######################################################################
+  DefaultNetwork:
+    Properties:
+      GroupDescription: cc-aline-ecs-compose Security Group for default network
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      - Key: com.docker.compose.network
+        Value: cc-aline-ecs-compose_default
+      VpcId: vpc-05165c0da38f13cd1
+    Type: AWS::EC2::SecurityGroup
+#######################################################################
+  DefaultNetworkIngress:
+    Properties:
+      Description: Allow communication within network default
+      GroupId:
+        Ref: DefaultNetwork
+      IpProtocol: "-1"
+      SourceSecurityGroupId:
+        Ref: DefaultNetwork
+    Type: AWS::EC2::SecurityGroupIngress
+#######################################################################
+  LoadBalancer:
+    Properties:
+      LoadBalancerAttributes:
+      - Key: load_balancing.cross_zone.enabled
+        Value: "true"
+      Scheme: internet-facing
+      Subnets:
+      - subnet-09f2982f9e528af15
+      - subnet-0c726a87818c72ed1
+      - subnet-0200c78128433c0b7
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+      Type: network
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+#######################################################################
+  CloudMap:
+    Properties:
+      Description: Service Map for Docker Compose project cc-aline-ecs-compose
+      Name: cc-aline-ecs-compose.local
+      Vpc: vpc-05165c0da38f13cd1
+    Type: AWS::ServiceDiscovery::PrivateDnsNamespace
+#######################################################################
+  Cluster:
+    Properties:
+      ClusterName: cc-aline-ecs-compose
+      Tags:
+      - Key: com.docker.compose.project
+        Value: cc-aline-ecs-compose
+    Type: AWS::ECS::Cluster
+#######################################################################
+  LogGroup:
+    Properties:
+      LogGroupName: /docker-compose/cc-aline-ecs-compose
+    Type: AWS::Logs::LogGroup
+
+

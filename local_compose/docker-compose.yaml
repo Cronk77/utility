@@ -1,0 +1,104 @@
+version: '3.8'
+
+x-common-variables: &common-variables
+  - ENCRYPT_SECRET_KEY=${ENCRYPT_SECRET_KEY}
+  - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+  - DB_USERNAME=${DB_USERNAME}
+  - DB_PASSWORD=${DB_PASSWORD}
+  - DB_HOST=${DB_HOST}
+  - DB_PORT=${DB_PORT}
+  - DB_NAME=${DB_NAME}
+
+services:
+  underwriter:
+    image: cc-underwriter-microservice
+    build: 
+      context: ../../aline-underwriter-microservice
+    env_file: 
+      - .env
+    environment: 
+      - "<<: *common-variables"
+      - APP_PORT=${UNDERWRITER_PORT}
+    expose: 
+      - ${UNDERWRITER_PORT}
+    ports:
+      - ${UNDERWRITER_PORT}:${UNDERWRITER_PORT}
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+
+  user:
+    image: cc-user-microservice
+    build: 
+      context: ../../aline-user-microservice
+    env_file: .env
+    environment:
+      - "<<: *common-variables"
+      - APP_PORT=${USER_PORT}
+    ports:
+      - ${USER_PORT}:${USER_PORT}
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+
+  card:
+    image: cc-card-microservice
+    build: 
+      context: ../../aline-card-microservice
+    env_file: .env
+    environment:
+      - "<<: *common-variables"
+      - APP_PORT=${CARD_PORT}
+    ports:
+      - ${CARD_PORT}:${CARD_PORT}
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+
+  account:
+    image: cc-account-microservice
+    build: 
+      context: ../../aline-account-microservice
+    env_file: .env
+    environment:
+      - "<<: *common-variables"
+      - APP_PORT=${ACCOUNT_PORT}
+    ports:
+      - ${ACCOUNT_PORT}:${ACCOUNT_PORT}
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+
+  transaction:
+    image: cc-transaction-microservice
+    build: 
+      context: ../../aline-transaction-microservice
+    env_file: .env
+    environment:
+      - "<<: *common-variables"
+      - APP_PORT=${TRANSACTION_PORT}
+    ports:
+      - ${TRANSACTION_PORT}:${TRANSACTION_PORT}
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+
+  bank:
+    image: cc-bank-microservice
+    build: 
+      context: ../../aline-bank-microservice
+    env_file: .env
+    environment:
+      - "<<: *common-variables"
+      - APP_PORT=${BANK_PORT}
+    ports:
+      - ${BANK_PORT}:${BANK_PORT}
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
